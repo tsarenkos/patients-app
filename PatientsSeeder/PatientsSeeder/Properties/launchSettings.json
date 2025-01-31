@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "PatientsSeeder": {
+      "commandName": "Project"
+    }
+  }
+}

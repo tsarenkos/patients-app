@@ -1,0 +1,56 @@
+version: "3.9"
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: patient_db
+    environment:
+      SA_PASSWORD: "Passw0rd!"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    networks:
+      - patient_network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 /bin/bash -c '</dev/tcp/localhost/1433'"]
+      interval: 10s
+      retries: 5
+      start_period: 20s
+
+  patient_api:
+    build:
+      context: ./PatientsProject
+      dockerfile: Dockerfile
+    container_name: patient_api
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=patient_db,1433;Database=PatientDb;User Id=sa;Password=Passw0rd!;
+    ports:
+      - "5000:5000"
+    depends_on:
+      mssql:
+        condition: service_healthy
+    networks:
+      - patient_network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 2s
+      retries: 5
+
+  patient_seeder:
+    build:
+      context: ./PatientsSeeder
+      dockerfile: Dockerfile
+    container_name: patient_seeder
+    depends_on:
+      patient_api:
+        condition: service_healthy
+      mssql:
+        condition: service_healthy   
+    networks:
+      - patient_network
+    restart: "no"
+
+networks:
+  patient_network:
+    driver: bridge
